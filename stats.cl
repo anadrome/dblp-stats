@@ -8,6 +8,8 @@
 
 (defvar *stats* (make-hash-table :test #'equal))
 
+(defconstant +end-year+ 2017)
+
 ;; utilities
 
 ; adapted from klacks:find-element, but looks for more than one possible lname,
@@ -50,25 +52,28 @@
     (let ((authors (mapcar #'intern (getf-all data :author)))
           (venue (intern (or (getf data :journal) (getf data :booktitle))))
           (year (parse-integer (getf data :year))))
-      (dolist (author authors)
-        (incf (gethash (list author venue year) *stats* 0))))))
+      (if (<= year +end-year+)
+        (dolist (author authors)
+          (incf (gethash (list author venue year) *stats* 0)))))))
 
 (defun get-next-pub (source)
   (if (find-element-multi source '("article" "inproceedings"))
     (klacks:serialize-element source (cxml-xmls:make-xmls-builder))))
 
 (defun print-as-tsv (metadata count)
-  (dolist (m metadata)
-    (princ m)
-    (write-char #\tab))
-  (princ count)
-  (write-char #\newline))
+  (let ((*print-pretty* nil))
+    (dolist (m metadata)
+      (princ m)
+      (write-char #\tab))
+    (princ count)
+    (write-char #\newline)))
 
 (let ((dblp-gz (external-program:process-output-stream
                  (external-program:start "gzcat" '("dblp.xml.gz") :output :stream))))
   (klacks:with-open-source (dblp (cxml:make-source dblp-gz))
     (loop for entry = (get-next-pub dblp)
           do (process-pub entry)
+          repeat 100000
           while entry)))
 
 (with-open-file (*standard-output* "dblp-authors.tsv" :direction :output :if-exists :supersede)
