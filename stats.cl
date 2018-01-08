@@ -10,7 +10,7 @@
 ;  -- look at journals/jmlr as an example. is this stuff we should actually include?
 ;     or is there some other way to exclude it? seems to be proceedings stuff
 
-; other TODOs: rename this from stats.cl, and output column headers on the TSVs
+; other TODOs: rename this from stats.cl, and make it callable as a proper script
 
 (ql:quickload :external-program)
 (ql:quickload :cxml)
@@ -67,8 +67,11 @@
 ;; process dblp.xml.gz
 
 (defvar *venue-keys* (make-hash-table :test #'equal))
+
 (defparameter *dblp-authors-file* (open #p"dblp-authors.tsv" :direction :output :if-exists :supersede))
+(print-tsv '("venue" "name" "year") *dblp-authors-file*)
 (defparameter *aliases-file* (open #p"aliases.tsv" :direction :output :if-exists :supersede))
+(print-tsv '("canonical" "alias") *aliases-file*)
 
 (defun process-pub (entry)
   (let ((key (get-attribute entry "key"))
@@ -110,6 +113,7 @@
 (close *aliases-file*)
 
 (with-open-file (venue-keys-file #p"venue-keys.tsv" :direction :output :if-exists :supersede)
+  (print-tsv '("key" "venue") venue-keys-file)
   (alexandria:maphash-keys (lambda (x)
                              (let ((key (first x))
                                    (venue (second x)))
