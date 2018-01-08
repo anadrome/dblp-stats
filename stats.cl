@@ -7,6 +7,10 @@
 ; everything that's under a given key (e.g. workshops). (can we just skip this
 ; last bit of filtering and either include everything under a key or exclude
 ; the key entirely?)
+;  -- look at journals/jmlr as an example. is this stuff we should actually include?
+;     or is there some other way to exclude it? seems to be proceedings stuff
+
+; other TODOs: rename this from stats.cl, and output column headers on the TSVs
 
 (ql:quickload :external-program)
 (ql:quickload :cxml)
@@ -36,6 +40,9 @@
               (values key current-uri current-lname current-qname)))))
       (klacks:consume source))))
 
+(defun get-attribute (xmls attribute)
+  (cadr (assoc attribute (cadr xmls) :test #'equal)))
+
 (defun getf-all (plist key)
   (loop for (k v) on plist by #'cddr
         if (string= k key)
@@ -48,41 +55,63 @@
   (mapcan (lambda (x) (list (keywordify (first x)) (third x)))
           (remove-if-not #'consp xmls-children)))
 
+(defun print-tsv (row stream)
+  (if row
+    (let ((*print-pretty* nil))
+      (princ (car row) stream)
+      (dolist (e (cdr row))
+        (write-char #\tab stream)
+        (princ e stream))
+      (write-char #\newline stream))))
+
 ;; process dblp.xml.gz
 
 (defvar *venue-keys* (make-hash-table :test #'equal))
 (defparameter *dblp-authors-file* (open #p"dblp-authors.tsv" :direction :output :if-exists :supersede))
+(defparameter *aliases-file* (open #p"aliases.tsv" :direction :output :if-exists :supersede))
 
 (defun process-pub (entry)
-  (let ((key (cadr (assoc "key" (cadr entry) :test #'equal)))
+  (let ((key (get-attribute entry "key"))
         (data (plistify (cddr entry))))
     (let ((authors (getf-all data :author))
           (venue (or (getf data :journal) (getf data :booktitle)))
           (year (getf data :year))
           (key-prefix (subseq key 0 (position #\/ key :from-end t))))
       (when (and year (<= (parse-integer year) +end-year+))
-        (let ((*print-pretty* nil))
-          (dolist (author authors)
-            (format *dblp-authors-file* "~a~c~a~c~a~%" venue #\tab author #\tab year)))
+        (dolist (author authors)
+          (print-tsv (list venue author year) *dblp-authors-file*))
         (setf (gethash (list key-prefix venue) *venue-keys*) t)))))
 
+(defun process-www (entry)
+  (let* ((key (get-attribute entry "key"))
+         (data (plistify (cddr entry)))
+         (authors (getf-all data :author)))
+    (let ((key-prefix (subseq key 0 (position #\/ key)))
+          (author (car authors))
+          (aliases (cdr authors)))
+      (if (and aliases (string= key-prefix "homepages"))
+        (dolist (alias aliases)
+          (print-tsv (list author alias) *aliases-file*))))))
+
 (defun get-next-pub (source)
-  (if (find-element-multi source '("article" "inproceedings"))
+  (if (find-element-multi source '("article" "inproceedings" "www"))
     (klacks:serialize-element source (cxml-xmls:make-xmls-builder))))
 
 (let ((dblp-gz (external-program:process-output-stream
                  (external-program:start "gzcat" '("dblp.xml.gz") :output :stream))))
   (klacks:with-open-source (dblp (cxml:make-source dblp-gz))
     (loop for entry = (get-next-pub dblp)
-          do (process-pub entry)
+          do (if (equal (car entry) "www")
+               (process-www entry)
+               (process-pub entry))
 ;          repeat 500000
           while entry)))
 (close *dblp-authors-file*)
+(close *aliases-file*)
 
 (with-open-file (venue-keys-file #p"venue-keys.tsv" :direction :output :if-exists :supersede)
-  (let ((*print-pretty* nil))
-    (alexandria:maphash-keys (lambda (x)
-                               (let ((key (first x))
-                                     (venue (second x)))
-                                 (format venue-keys-file "~a~c~a~%" key #\tab venue)))
-                             *venue-keys*)))
+  (alexandria:maphash-keys (lambda (x)
+                             (let ((key (first x))
+                                   (venue (second x)))
+                               (print-tsv (list key venue) venue-keys-file)))
+                           *venue-keys*))
