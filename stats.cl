@@ -69,7 +69,7 @@
 (defvar *venue-keys* (make-hash-table :test #'equal))
 
 (defparameter *dblp-authors-file* (open #p"dblp-authors.tsv" :direction :output :if-exists :supersede))
-(print-tsv '("venue" "name" "year") *dblp-authors-file*)
+(print-tsv '("venue_key" "venue_name" "name" "year") *dblp-authors-file*)
 (defparameter *aliases-file* (open #p"aliases.tsv" :direction :output :if-exists :supersede))
 (print-tsv '("canonical" "alias") *aliases-file*)
 
@@ -82,7 +82,7 @@
           (key-prefix (subseq key 0 (position #\/ key :from-end t))))
       (when (and year (<= (parse-integer year) +end-year+))
         (dolist (author authors)
-          (print-tsv (list venue author year) *dblp-authors-file*))
+          (print-tsv (list key-prefix venue author year) *dblp-authors-file*))
         (setf (gethash (list key-prefix venue) *venue-keys*) t)))))
 
 (defun process-www (entry)
