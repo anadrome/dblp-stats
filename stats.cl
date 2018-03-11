@@ -17,7 +17,7 @@
 (ql:quickload :cxml-klacks)
 (ql:quickload :cxml-xml)
 
-(defconstant +end-year+ 2017)
+(defconstant +end-year+ 2018)
 
 ;; utilities
 
