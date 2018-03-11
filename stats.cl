@@ -17,8 +17,6 @@
 (ql:quickload :cxml-klacks)
 (ql:quickload :cxml-xml)
 
-(defconstant +end-year+ 2018)
-
 ;; utilities
 
 ; adapted from klacks:find-element, but looks for more than one possible lname,
@@ -80,7 +78,7 @@
           (venue (or (getf data :journal) (getf data :booktitle)))
           (year (getf data :year))
           (key-prefix (subseq key 0 (position #\/ key :from-end t))))
-      (when (and authors year (<= (parse-integer year) +end-year+))
+      (when (and authors year)
         (let ((fraction (/ 1.0 (length authors))))
           (dolist (author authors)
             (print-tsv (list key-prefix venue author year fraction) *dblp-authors-file*))
