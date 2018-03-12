@@ -1,68 +1,20 @@
 ;; extract some DBLP authorship info from the XML dump to TSV
 ;; mjn, 2017-2018
 
-; FIXME: can't use venue name as unique key bc some are duplicated, e.g. there
-; are several ICCC. probably need both key *and* name, so we can use key as
-; unique but use name to filter out unwanted stuff in cases where we don't want
-; everything that's under a given key (e.g. workshops). (can we just skip this
-; last bit of filtering and either include everything under a key or exclude
-; the key entirely?)
-;  -- look at journals/jmlr as an example. is this stuff we should actually include?
-;     or is there some other way to exclude it? seems to be proceedings stuff
+; TODO: Still issues around what can be used as a venue key. Probably need
+; both key *and* name, so we can use key as unique but use name to filter out
+; unwanted stuff in cases where we don't want everything that's under a given
+; key (e.g. workshops).
+;  -- look at journals/jmlr as an example, seems like some kind of proceedings
+;     ended up filed under there in addition to the actual journal
 
-; other TODOs: rename this from stats.cl, and make it callable as a proper script
+; TODO: make this callable as a script
 
 (ql:quickload :external-program)
 (ql:quickload :cxml)
 (ql:quickload :cxml-klacks)
 (ql:quickload :cxml-xml)
-
-;; utilities
-
-; adapted from klacks:find-element, but looks for more than one possible lname,
-; stopping at the first one of the set found
-(defun find-element-multi (source &optional lnames uri)
-  (loop
-    (multiple-value-bind (key current-uri current-lname current-qname)
-        (klacks:peek source)
-      (case key
-        ((nil)
-         (return nil))
-        (:start-element
-          (when (and (eq key :start-element)
-                     (or (null lnames)
-                         (member current-lname lnames :test #'equal))
-                     (or (null uri)
-                         (equal uri current-uri)))
-            (return
-              (values key current-uri current-lname current-qname)))))
-      (klacks:consume source))))
-
-(defun get-attribute (xmls attribute)
-  (cadr (assoc attribute (cadr xmls) :test #'equal)))
-
-(defun getf-all (plist key)
-  (loop for (k v) on plist by #'cddr
-        if (string= k key)
-        collect v))
-
-(defun keywordify (string)
-  (intern (string-upcase string) 'keyword))
-
-(defun plistify (xmls-children)
-  (mapcan (lambda (x) (list (keywordify (first x)) (third x)))
-          (remove-if-not #'consp xmls-children)))
-
-(defun print-tsv (row stream)
-  (if row
-    (let ((*print-pretty* nil))
-      (princ (car row) stream)
-      (dolist (e (cdr row))
-        (write-char #\tab stream)
-        (princ e stream))
-      (write-char #\newline stream))))
-
-;; process dblp.xml.gz
+(load "util.cl")
 
 (defvar *venue-keys* (make-hash-table :test #'equal))
 
@@ -106,7 +58,6 @@
           do (if (equal (car entry) "www")
                (process-www entry)
                (process-pub entry))
-;          repeat 500000
           while entry)))
 (close *dblp-authors-file*)
 (close *aliases-file*)
