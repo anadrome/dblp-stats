@@ -41,18 +41,39 @@ top100 <- pubs %>%
         count(affiliation, wt=fraction) %>% top_n(100) %>%
         arrange(desc(n))
 
-# all authors by institution
+# authors sorted by institution and paper-shares,
+# w/ "0001" style disambiguators omitted for presentation
 authors <- pubs %>%
         count(name, wt=fraction) %>%
         inner_join(affiliations) %>%
+        mutate(name=str_replace(name, " \\d+$", "")) %>%
         arrange(affiliation, desc(n))
 
-# per-institution top authors: ppl who contribute >= 2.0 papers, up to 6 max
-topauthors <- authors %>%
-        filter((affiliation %in% top100$affiliation) & (n > 1.999)) %>%
+# split into those who contribute >=2.0 vs. <2.0 papers
+topauthors <- authors %>% filter(n >= 2.0)
+otherauthors <- authors %>% anti_join(topauthors)
+
+# comma-separated topauthors for the results table, max 6 per institution
+tableauthors <- topauthors %>%
+        filter(affiliation %in% top100$affiliation) %>%
         group_by(affiliation) %>%
         top_n(6, n) %>%
-        arrange(desc(n)) %>%
-        mutate(name=str_replace(name, " \\d+$", "")) %>%  # omit "0001" style disambiguators for presentation
         summarise(authors=paste(name, collapse=", "))
 
+# comma-separated top venues per institution for the results table
+# always at least one, plus any additional w/ >= 5.0 papers, up to 6 max
+tablevenues <- pubs %>%
+        inner_join(affiliations) %>%
+        filter(affiliation %in% top100$affiliation) %>%
+        count(affiliation, venue_key, wt=fraction) %>%
+        group_by(affiliation) %>%
+        filter((min_rank(desc(n)) == 1) | (n >= 3.0)) %>%
+        top_n(6, n) %>%
+        arrange(desc(n)) %>%
+        summarise(venues=paste(venue_key, collapse=", "))
+
+# collect the main table
+table <- top100 %>%
+        left_join(tableauthors, by="affiliation") %>%
+        left_join(tablevenues, by="affiliation") %>%
+        mutate(rank=min_rank(desc(n)))
