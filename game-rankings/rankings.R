@@ -2,6 +2,7 @@
 # mjn, 2018
 
 library(tidyverse)
+library(whisker)
 
 cutoffyear <- 2008              # (inclusive)
 venues <- c("journals/tciaig",
@@ -48,6 +49,8 @@ authors <- pubs %>%
         inner_join(affiliations) %>%
         mutate(name=str_replace(name, " \\d+$", "")) %>%
         arrange(affiliation, desc(n))
+numauthors <- length(authors$name)
+numaffiliations <- n_distinct(authors$affiliation)
 
 # split into those who contribute >=2.0 vs. <2.0 papers
 topauthors <- authors %>% filter(n >= 2.0)
@@ -57,11 +60,12 @@ otherauthors <- authors %>% anti_join(topauthors)
 tableauthors <- topauthors %>%
         filter(affiliation %in% top100$affiliation) %>%
         group_by(affiliation) %>%
-        top_n(6, n) %>%
-        summarise(authors=paste(name, collapse=", "))
+        top_n(6, n)
+numtableauthors <- length(tableauthors$name)
+tableauthors <- tableauthors %>% summarise(authors=paste(name, collapse=", "))
 
 # comma-separated top venues per institution for the results table
-# always at least one, plus any additional w/ >= 5.0 papers, up to 6 max
+# always at least one, plus any additional w/ >= 3.0 papers, up to 6 max
 tablevenues <- pubs %>%
         inner_join(affiliations) %>%
         filter(affiliation %in% top100$affiliation) %>%
@@ -72,8 +76,36 @@ tablevenues <- pubs %>%
         arrange(desc(n)) %>%
         summarise(venues=paste(venue_key, collapse=", "))
 
-# collect the main table
+# collect the main table into a list suitable for template substitution
 table <- top100 %>%
         left_join(tableauthors, by="affiliation") %>%
         left_join(tablevenues, by="affiliation") %>%
-        mutate(rank=min_rank(desc(n)))
+        mutate(rank=min_rank(desc(n))) %>%
+        mutate(n=format(round(n,1), nsmall=1)) %>%
+        rowSplit %>% unname
+
+# output the main page
+template <- readLines('index.mustache')
+html <- whisker.render(template)
+writeLines(html,'index.html')
+
+# collect authors for the list-of-all-affiliations page
+allauthors <- full_join(topauthors %>%
+                          group_by(affiliation) %>%
+                          summarise(topauthors=paste(name, collapse=", ")),
+                        otherauthors %>%
+                          group_by(affiliation) %>%
+                          summarise(otherauthors=paste(name, collapse=", ")),
+                        by="affiliation") %>%
+              transmute(affiliation,
+                        authors=case_when(
+                          !is.na(topauthors) & !is.na(otherauthors) ~ paste("<b>",topauthors,"</b>, ",otherauthors,sep=""),
+                          !is.na(topauthors) ~ paste("<b>",topauthors,"</b>",sep=""),
+                          !is.na(otherauthors) ~ otherauthors)) %>%
+              arrange(affiliation) %>%
+              rowSplit %>% unname
+
+# output the list-of-all-affiliations page
+template <- readLines('affiliations.mustache')
+html <- whisker.render(template)
+writeLines(html,'affiliations.html')
