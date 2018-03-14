@@ -4,6 +4,8 @@
 library(tidyverse)
 library(whisker)
 
+dblp_date <- file.mtime('../dblp.xml.gz') %>% str_replace(" .*$","")
+
 cutoffyear <- 2008              # (inclusive)
 venues <- c("journals/tciaig",
             "journals/entcom",
