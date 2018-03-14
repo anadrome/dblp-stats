@@ -73,13 +73,16 @@ tablevenues <- pubs %>%
         group_by(affiliation) %>%
         filter((min_rank(desc(n)) == 1) | (n >= 3.0)) %>%
         top_n(6, n) %>%
+        left_join(read_csv("venue-names.csv")) %>%
         arrange(desc(n)) %>%
-        summarise(venues=paste(venue_key, collapse=", "))
+        summarise(venues=paste(venue, collapse=", "))
 
 # collect the main table into a list suitable for template substitution
+instnames <- read_csv("institution-names.csv")
 table <- top100 %>%
         left_join(tableauthors, by="affiliation") %>%
         left_join(tablevenues, by="affiliation") %>%
+        left_join(instnames) %>%
         mutate(rank=min_rank(desc(n))) %>%
         mutate(n=format(round(n,1), nsmall=1)) %>%
         rowSplit %>% unname
@@ -97,12 +100,13 @@ allauthors <- full_join(topauthors %>%
                           group_by(affiliation) %>%
                           summarise(otherauthors=paste(name, collapse=", ")),
                         by="affiliation") %>%
-              transmute(affiliation,
+              left_join(instnames) %>%
+              transmute(institution, country,
                         authors=case_when(
                           !is.na(topauthors) & !is.na(otherauthors) ~ paste("<b>",topauthors,"</b>, ",otherauthors,sep=""),
                           !is.na(topauthors) ~ paste("<b>",topauthors,"</b>",sep=""),
                           !is.na(otherauthors) ~ otherauthors)) %>%
-              arrange(affiliation) %>%
+              arrange(institution) %>%
               rowSplit %>% unname
 
 # output the list-of-all-affiliations page
