@@ -55,14 +55,12 @@ numauthors <- length(authors$name)
 numaffiliations <- n_distinct(authors$affiliation)
 numperaffiliation <- authors %>% group_by(affiliation) %>% summarise(numauthors=n())
 
-# split into those who contribute >=2.0 vs. <2.0 papers
-topauthors <- authors %>% filter(n >= 2.0)
-otherauthors <- authors %>% anti_join(topauthors)
-
-# comma-separated topauthors for the results table, max 6 per institution
-tableauthors <- topauthors %>%
+# comma-separated authors for the main table
+# authors w/ >= 2.0 papers, up to 6 per institution, but always at least 1
+tableauthors <- authors %>%
         filter(affiliation %in% top100$affiliation) %>%
         group_by(affiliation) %>%
+        filter((min_rank(desc(n)) == 1) | (n >= 2.0)) %>%
         top_n(6, n) %>%
         summarise(authors=paste(name, collapse=", "), numtableauthors=n())
 numtableauthors <- sum(tableauthors$numtableauthors)
@@ -98,6 +96,8 @@ html <- whisker.render(template)
 writeLines(html,'index.html')
 
 # collect authors for the list-of-all-affiliations page
+topauthors <- authors %>% filter(n >= 2.0)
+otherauthors <- authors %>% anti_join(topauthors)
 allauthors <- full_join(topauthors %>%
                           group_by(affiliation) %>%
                           summarise(topauthors=paste(name, collapse=", ")),
