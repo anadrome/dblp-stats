@@ -53,6 +53,7 @@ authors <- pubs %>%
         arrange(affiliation, desc(n))
 numauthors <- length(authors$name)
 numaffiliations <- n_distinct(authors$affiliation)
+numperaffiliation <- authors %>% group_by(affiliation) %>% summarise(numauthors=n())
 
 # split into those who contribute >=2.0 vs. <2.0 papers
 topauthors <- authors %>% filter(n >= 2.0)
@@ -62,9 +63,9 @@ otherauthors <- authors %>% anti_join(topauthors)
 tableauthors <- topauthors %>%
         filter(affiliation %in% top100$affiliation) %>%
         group_by(affiliation) %>%
-        top_n(6, n)
-numtableauthors <- length(tableauthors$name)
-tableauthors <- tableauthors %>% summarise(authors=paste(name, collapse=", "))
+        top_n(6, n) %>%
+        summarise(authors=paste(name, collapse=", "), numtableauthors=n())
+numtableauthors <- sum(tableauthors$numtableauthors)
 
 # comma-separated top venues per institution for the results table
 # always at least one, plus any additional w/ >= 3.0 papers, up to 6 max
@@ -85,8 +86,10 @@ table <- top100 %>%
         left_join(tableauthors, by="affiliation") %>%
         left_join(tablevenues, by="affiliation") %>%
         left_join(instnames) %>%
-        mutate(rank=min_rank(desc(n))) %>%
-        mutate(n=format(round(n,1), nsmall=1)) %>%
+        left_join(numperaffiliation) %>%
+        mutate(rank=min_rank(desc(n)),
+               n=format(round(n,1), nsmall=1),
+               moreauthors=numauthors > numtableauthors) %>%
         rowSplit %>% unname
 
 # output the main page
@@ -103,8 +106,7 @@ allauthors <- full_join(topauthors %>%
                           summarise(otherauthors=paste(name, collapse=", ")),
                         by="affiliation") %>%
               left_join(instnames) %>%
-              transmute(institution, country,
-                        authors=case_when(
+              mutate(authors=case_when(
                           !is.na(topauthors) & !is.na(otherauthors) ~ paste("<b>",topauthors,"</b>, ",otherauthors,sep=""),
                           !is.na(topauthors) ~ paste("<b>",topauthors,"</b>",sep=""),
                           !is.na(otherauthors) ~ otherauthors)) %>%
