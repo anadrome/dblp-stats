@@ -41,6 +41,7 @@ affiliations <- read_csv("affiliations.csv")
 # institution rankings
 top100 <- pubs %>%
         inner_join(affiliations) %>%
+        filter(affiliation != "Other") %>%
         count(affiliation, wt=fraction) %>% top_n(100) %>%
         arrange(desc(n))
 
@@ -52,7 +53,7 @@ authors <- pubs %>%
         mutate(name=str_replace(name, " \\d+$", "")) %>%
         arrange(affiliation, desc(n))
 numauthors <- length(authors$name)
-numaffiliations <- n_distinct(authors$affiliation)
+numaffiliations <- n_distinct(authors$affiliation) - 1  # -1 to uncount "Other"
 numperaffiliation <- authors %>% group_by(affiliation) %>% summarise(numauthors=n())
 
 # comma-separated authors for the main table
@@ -109,9 +110,12 @@ allauthors <- full_join(topauthors %>%
               mutate(authors=case_when(
                           !is.na(topauthors) & !is.na(otherauthors) ~ paste("<b>",topauthors,"</b>, ",otherauthors,sep=""),
                           !is.na(topauthors) ~ paste("<b>",topauthors,"</b>",sep=""),
-                          !is.na(otherauthors) ~ otherauthors)) %>%
-              arrange(institution) %>%
-              rowSplit %>% unname
+                          !is.na(otherauthors) ~ otherauthors))
+allinstauthors <- allauthors %>%
+        filter(affiliation != "Other") %>%
+        arrange(institution) %>%
+        rowSplit %>% unname
+allotherauthors <- (allauthors %>% filter(affiliation == "Other"))$authors[1]
 
 # output the list-of-all-affiliations page
 template <- readLines('affiliations.mustache')
