@@ -19,7 +19,7 @@
 (defvar *venue-keys* (make-hash-table :test #'equal))
 
 (defparameter *dblp-authors-file* (open #p"dblp-authors.tsv" :direction :output :if-exists :supersede))
-(print-tsv '("venue_key" "venue_name" "name" "year" "fraction") *dblp-authors-file*)
+(print-tsv '("name" "key" "venue_key" "venue_name" "year" "fraction") *dblp-authors-file*)
 (defparameter *aliases-file* (open #p"aliases.tsv" :direction :output :if-exists :supersede))
 (print-tsv '("canonical" "alias") *aliases-file*)
 
@@ -33,7 +33,7 @@
       (when (and authors year)
         (let ((fraction (/ 1.0 (length authors))))
           (dolist (author authors)
-            (print-tsv (list key-prefix venue author year fraction) *dblp-authors-file*))
+            (print-tsv (list author key key-prefix venue year fraction) *dblp-authors-file*))
           (setf (gethash (list key-prefix venue) *venue-keys*) t))))))
 
 (defun process-www (entry)
