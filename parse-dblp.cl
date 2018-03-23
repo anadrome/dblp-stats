@@ -16,8 +16,6 @@
 (ql:quickload :cxml-xml)
 (load "util.cl")
 
-(defvar *venue-keys* (make-hash-table :test #'equal))
-
 (defparameter *dblp-authors-file* (open #p"dblp-authors.tsv" :direction :output :if-exists :supersede))
 (print-tsv '("name" "key" "venue_key" "venue_name" "year" "fraction") *dblp-authors-file*)
 (defparameter *aliases-file* (open #p"aliases.tsv" :direction :output :if-exists :supersede))
@@ -33,8 +31,7 @@
       (when (and authors year)
         (let ((fraction (/ 1.0 (length authors))))
           (dolist (author authors)
-            (print-tsv (list author key key-prefix venue year fraction) *dblp-authors-file*))
-          (setf (gethash (list key-prefix venue) *venue-keys*) t))))))
+            (print-tsv (list author key key-prefix venue year fraction) *dblp-authors-file*)))))))
 
 (defun process-www (entry)
   (let* ((key (get-attribute entry "key"))
@@ -61,11 +58,3 @@
           while entry)))
 (close *dblp-authors-file*)
 (close *aliases-file*)
-
-(with-open-file (venue-keys-file #p"venue-keys.tsv" :direction :output :if-exists :supersede)
-  (print-tsv '("key" "venue") venue-keys-file)
-  (alexandria:maphash-keys (lambda (x)
-                             (let ((key (first x))
-                                   (venue (second x)))
-                               (print-tsv (list key venue) venue-keys-file)))
-                           *venue-keys*))
