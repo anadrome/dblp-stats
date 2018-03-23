@@ -27,6 +27,8 @@ venues <- c("journals/tciaig",
 pubs <- read_tsv("../dblp-authors.tsv.gz", quote="") %>%
         filter((venue_key %in% venues & year >= cutoffyear) |
                (venue_key == "journals/cie" & year >= 2014)) %>%
+        # omit news, front matter, etc. that was misindexed
+        anti_join(read_csv("nonpapers.csv")) %>%
         # DBLP-level aliases
         left_join(read_tsv("../aliases.tsv.gz", quote=""), by=c("name"="alias")) %>%
         mutate(canonicalized=coalesce(canonical, name)) %>%
