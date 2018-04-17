@@ -4,7 +4,7 @@
 library(tidyverse)
 library(whisker)
 
-dblp_date <- file.mtime('../dblp.xml.gz') %>% str_replace(" .*$","")
+dblp_date <- file.mtime("../dblp.xml.gz") %>% str_replace(" .*$","")
 
 cutoffyear <- 2008              # (inclusive)
 venues <- c("journals/tciaig",
@@ -13,7 +13,6 @@ venues <- c("journals/tciaig",
             "journals/ijgbl",
             #"journals/cie",    # special-cased: only from 2014 relaunch
             "conf/fdg",
-            "conf/digra",
             "conf/aiide",
             "conf/cig",
             "conf/mig",
@@ -24,19 +23,21 @@ venues <- c("journals/tciaig",
             "conf/cg",
             "conf/acg")
 
+sub_aliases <- function(data, aliases) {
+        data %>% left_join(aliases, by=c("name"="alias")) %>%
+        mutate(canonicalized=coalesce(canonical, name)) %>%
+        select(venue_key, name=canonicalized, fraction)
+}
+
+
 pubs <- read_tsv("../dblp-authors.tsv.gz", quote="") %>%
         filter((venue_key %in% venues & year >= cutoffyear) |
                (venue_key == "journals/cie" & year >= 2014)) %>%
         # omit news, front matter, etc. that was misindexed
         anti_join(read_csv("nonpapers.csv")) %>%
-        # DBLP-level aliases
-        left_join(read_tsv("../aliases.tsv.gz", quote=""), by=c("name"="alias")) %>%
-        mutate(canonicalized=coalesce(canonical, name)) %>%
-        select(venue_key, name=canonicalized, fraction) %>%
-        # local aliases
-        left_join(read_csv("aliases.csv"), by=c("name"="alias")) %>%
-        mutate(canonicalized=coalesce(canonical, name)) %>%
-        select(venue_key, name=canonicalized, fraction)
+        # canonicalize DBLP and local aliases
+        sub_aliases(read_tsv("../aliases.tsv.gz", quote="")) %>%
+        sub_aliases(read_csv("aliases.csv"))
 
 affiliations <- read_csv("affiliations.csv")
 
@@ -94,9 +95,9 @@ table <- top100 %>%
         rowSplit %>% unname
 
 # output the main page
-template <- readLines('index.mustache')
+template <- readLines("index.mustache")
 html <- whisker.render(template)
-writeLines(html,'index.html')
+writeLines(html, "index.html")
 
 # collect authors for the list-of-all-affiliations page
 topauthors <- authors %>% filter(n >= 2.0)
@@ -120,6 +121,6 @@ allinstauthors <- allauthors %>%
 allotherauthors <- (allauthors %>% filter(affiliation == "Other"))$authors[1]
 
 # output the list-of-all-affiliations page
-template <- readLines('affiliations.mustache')
+template <- readLines("affiliations.mustache")
 html <- whisker.render(template)
-writeLines(html,'affiliations.html')
+writeLines(html, "affiliations.html")
