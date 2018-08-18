@@ -70,14 +70,13 @@ tableauthors <- authors %>%
 numtableauthors <- sum(tableauthors$numtableauthors)
 
 # comma-separated top venues per institution for the results table
-# always at least one, plus any additional w/ >= 3.0 papers, up to 6 max
+# always at least one, plus any additional w/ >= 3.0 papers
 tablevenues <- pubs %>%
         inner_join(affiliations) %>%
         filter(affiliation %in% top100$affiliation) %>%
         count(affiliation, venue_key, wt=fraction) %>%
         group_by(affiliation) %>%
         filter((min_rank(desc(n)) == 1) | (n >= 3.0)) %>%
-        top_n(6, n) %>%
         left_join(read_csv("venue-names.csv")) %>%
         arrange(desc(n)) %>%
         summarise(venues=paste(venue, collapse=", "))
