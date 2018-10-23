@@ -60,12 +60,11 @@ numaffiliations <- n_distinct(authors$affiliation) - 1  # -1 to uncount "Other"
 numperaffiliation <- authors %>% group_by(affiliation) %>% summarise(numauthors=n())
 
 # comma-separated authors for the main table
-# authors w/ >= 2.0 papers, up to 6 per institution, but always at least 1
+# authors w/ >= 2.0 papers, but always at least 1
 tableauthors <- authors %>%
         filter(affiliation %in% top100$affiliation) %>%
         group_by(affiliation) %>%
         filter((min_rank(desc(n)) == 1) | (n >= 2.0)) %>%
-        top_n(6, n) %>%
         summarise(authors=paste(name, collapse=", "), numtableauthors=n())
 numtableauthors <- sum(tableauthors$numtableauthors)
 
