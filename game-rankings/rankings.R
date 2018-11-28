@@ -52,11 +52,11 @@ top100 <- pubs %>%
 # w/ "0001" style disambiguators omitted for presentation
 authors <- pubs %>%
         count(name, wt=fraction) %>%
-        inner_join(affiliations) %>%
+        left_join(affiliations) %>%
         mutate(name=str_replace(name, " \\d+$", "")) %>%
         arrange(affiliation, desc(n))
-numauthors <- length(authors$name)
-numaffiliations <- n_distinct(authors$affiliation) - 1  # -1 to uncount "Other"
+numauthors <- length((authors %>% filter(!is.na(affiliation)))$name)
+numaffiliations <- n_distinct(authors$affiliation, na.rm=T) - 1  # -1 to uncount "Other"
 numperaffiliation <- authors %>% group_by(affiliation) %>% summarise(numauthors=n())
 
 # comma-separated authors for the main table
@@ -113,12 +113,18 @@ allauthors <- full_join(topauthors %>%
                           !is.na(topauthors) ~ paste("<b>",topauthors,"</b>",sep=""),
                           !is.na(otherauthors) ~ otherauthors))
 allinstauthors <- allauthors %>%
-        filter(affiliation != "Other") %>%
+        filter(affiliation != "Other" & !is.na(affiliation)) %>%
         arrange(institution) %>%
         rowSplit %>% unname
 allotherauthors <- (allauthors %>% filter(affiliation == "Other"))$authors[1]
+missingauthors  <- (allauthors %>% filter(is.na(affiliation)))$authors[1]
 
 # output the list-of-all-affiliations page
 template <- readLines("affiliations.mustache")
 html <- whisker.render(template)
 writeLines(html, "affiliations.html")
+
+# output the missing-affiliations page
+template <- readLines("missing.mustache")
+html <- whisker.render(template)
+writeLines(html, "missing.html")
