@@ -13,7 +13,6 @@
 (ql:quickload :external-program)
 (ql:quickload :cxml)
 (ql:quickload :cxml-klacks)
-(ql:quickload :cxml-xml)
 (load "util.cl")
 
 (defparameter *dblp-authors-file* (open #p"dblp-authors.tsv" :direction :output :if-exists :supersede))
