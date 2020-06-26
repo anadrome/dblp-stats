@@ -32,7 +32,15 @@
   (intern (string-upcase string) 'keyword))
 
 (defun plistify (xmls-children)
-  (mapcan (lambda (x) (list (keywordify (first x)) (third x)))
+  "Turns an xmls tree that contains key-value style data into a plist mapping
+  keys to values. The value might be a single item, an xmls structure (if the
+  value contained embedded xml), or a list of either."
+  (mapcan (lambda (x)
+            (list
+              (keywordify (first x))
+              (if (= (length x) 3)
+                (third x)
+                (cddr x))))
           (remove-if-not #'consp xmls-children)))
 
 (defun print-tsv (row stream)
