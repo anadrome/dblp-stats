@@ -1,5 +1,5 @@
 ;; some mostly XML-related utilities
-;; mjn, 2017-2018
+;; mjn, 2017-2020
 
 ; adapted from klacks:find-element, but looks for more than one possible lname,
 ; stopping at the first one of the set found
@@ -31,16 +31,27 @@
 (defun keywordify (string)
   (intern (string-upcase string) 'keyword))
 
-(defun plistify (xmls-children)
+(defun flatten-xmls (xmls)
+  "Flatten an xmls tree into a string, stripping the tags."
+  (cond
+    ((null xmls) nil)
+    ((atom xmls) xmls)
+    (t (apply #'concatenate 'string
+         (mapcar #'flatten-xmls (cddr xmls))))))
+
+(defun plistify (xmls-children &key (flatten nil))
   "Turns an xmls tree that contains key-value style data into a plist mapping
   keys to values. The value might be a single item, an xmls structure (if the
-  value contained embedded xml), or a list of either."
+  value contained embedded xml), or a list of either. If 'flatten' is true,
+  values are flattened into a single string, stripping the tags."
   (mapcan (lambda (x)
             (list
               (keywordify (first x))
-              (if (= (length x) 3)
-                (third x)
-                (cddr x))))
+              (if flatten
+                (flatten-xmls x)
+                (if (= (length x) 3)
+                  (third x)
+                  (cddr x)))))
           (remove-if-not #'consp xmls-children)))
 
 (defun print-tsv (row stream)
