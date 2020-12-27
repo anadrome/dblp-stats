@@ -1,5 +1,5 @@
 ;; extract some DBLP authorship info from the XML dump to TSV
-;; mjn, 2017-2018
+;; mjn, 2017-2020
 
 ; TODO: Still issues around what can be used as a venue key. Probably need
 ; both key *and* name, so we can use key as unique but use name to filter out
@@ -13,12 +13,15 @@
 (ql:quickload :external-program)
 (ql:quickload :cxml)
 (ql:quickload :cxml-klacks)
+(ql:quickload :uiop)
 (load "util.cl")
 
 (defparameter *dblp-authors-file* (open #p"dblp-authors.tsv" :direction :output :if-exists :supersede))
 (print-tsv '("name" "key" "venue_key" "venue_name" "year" "fraction") *dblp-authors-file*)
 (defparameter *aliases-file* (open #p"aliases.tsv" :direction :output :if-exists :supersede))
 (print-tsv '("canonical" "alias") *aliases-file*)
+(defparameter *doi-file* (open #p"doi.tsv" :direction :output :if-exists :supersede))
+(print-tsv '("key" "doi") *doi-file*)
 
 (defun process-pub (entry)
   (let ((key (get-attribute entry "key"))
@@ -26,11 +29,14 @@
     (let ((authors (getf-all data :author))
           (venue (or (getf data :journal) (getf data :booktitle)))
           (year (getf data :year))
-          (key-prefix (subseq key 0 (position #\/ key :from-end t))))
+          (key-prefix (subseq key 0 (position #\/ key :from-end t)))
+          (doi (find-if (lambda (url) (uiop:string-prefix-p "https://doi.org" url)) (getf-all data :ee))))
       (when (and authors year)
         (let ((fraction (/ 1.0 (length authors))))
           (dolist (author authors)
-            (print-tsv (list author key key-prefix venue year fraction) *dblp-authors-file*)))))))
+            (print-tsv (list author key key-prefix venue year fraction) *dblp-authors-file*))))
+      (when doi
+        (print-tsv (list key doi) *doi-file*)))))
 
 (defun process-www (entry)
   (let* ((key (get-attribute entry "key"))
@@ -57,3 +63,4 @@
           while entry)))
 (close *dblp-authors-file*)
 (close *aliases-file*)
+(close *doi-file*)
