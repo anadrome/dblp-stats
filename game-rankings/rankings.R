@@ -30,16 +30,16 @@ sub_aliases <- function(data, aliases) {
 }
 
 
-pubs <- read_tsv("../dblp-authors.tsv.gz", quote="") %>%
+pubs <- read_tsv("../dblp-authors.tsv.gz", quote="", col_types="ccccid") %>%
         filter((venue_key %in% venues & year >= cutoffyear) |
                (venue_key == "journals/cie" & year >= 2014)) %>%
         # omit news, front matter, etc. that was misindexed
         anti_join(read_csv("nonpapers.csv")) %>%
         # canonicalize DBLP and local aliases
-        sub_aliases(read_tsv("../aliases.tsv.gz", quote="")) %>%
-        sub_aliases(read_csv("aliases.csv"))
+        sub_aliases(read_tsv("../aliases.tsv.gz", quote="", col_types="cc")) %>%
+        sub_aliases(read_csv("aliases.csv", col_types="cc"))
 
-affiliations <- read_csv("affiliations.csv")
+affiliations <- read_csv("affiliations.csv", col_types="cc")
 
 # institution rankings
 top100 <- pubs %>%
@@ -69,19 +69,19 @@ tableauthors <- authors %>%
 numtableauthors <- sum(tableauthors$numtableauthors)
 
 # comma-separated top venues per institution for the results table
-# always at least one, plus any additional w/ >= 3.0 papers
+# always at least one, plus any additional w/ >= 2.0 papers
 tablevenues <- pubs %>%
         inner_join(affiliations) %>%
         filter(affiliation %in% top100$affiliation) %>%
         count(affiliation, venue_key, wt=fraction) %>%
         group_by(affiliation) %>%
-        filter((min_rank(desc(n)) == 1) | (n >= 3.0)) %>%
-        left_join(read_csv("venue-names.csv")) %>%
+        filter((min_rank(desc(n)) == 1) | (n >= 2.0)) %>%
+        left_join(read_csv("venue-names.csv", col_types="cc")) %>%
         arrange(desc(n)) %>%
         summarise(venues=paste(venue, collapse=", "))
 
 # collect the main table into a list suitable for template substitution
-instnames <- read_csv("institution-names.csv")
+instnames <- read_csv("institution-names.csv", col_types="ccc")
 table <- top100 %>%
         left_join(tableauthors, by="affiliation") %>%
         left_join(tablevenues, by="affiliation") %>%
@@ -89,7 +89,8 @@ table <- top100 %>%
         left_join(numperaffiliation) %>%
         mutate(rank=min_rank(desc(n)),
                n=format(round(n,1), nsmall=1),
-               moreauthors=numauthors > numtableauthors) %>%
+               numotherauthors=numauthors-numtableauthors,
+               moreauthors=numotherauthors > 0) %>%
         rowSplit %>% unname
 
 # output the main page
