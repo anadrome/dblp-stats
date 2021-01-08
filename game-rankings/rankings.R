@@ -6,11 +6,12 @@ library(whisker)
 
 dblp_date <- file.mtime("../dblp.xml.gz") %>% str_replace(" .*$","")
 
-cutoffyear <- 2008              # (inclusive)
+cutoffyear <- 2011              # (inclusive)
 venues <- c("journals/tciaig",
             "journals/entcom",
             "journals/ijcgt",
             "journals/ijgbl",
+            "journals/icga",
             #"journals/cie",    # special-cased: only from 2014 relaunch
             "conf/fdg",
             "conf/aiide",
@@ -21,7 +22,8 @@ venues <- c("journals/tciaig",
             "conf/chiplay",
             "conf/icids",
             "conf/cg",
-            "conf/acg")
+            "conf/acg",
+            "conf/si3d")
 
 sub_aliases <- function(data, aliases) {
         data %>% left_join(aliases, by=c("name"="alias")) %>%
@@ -34,7 +36,8 @@ pubs <- read_tsv("../dblp-authors.tsv.gz", quote="", col_types="ccccid") %>%
         filter((venue_key %in% venues & year >= cutoffyear) |
                (venue_key == "journals/cie" & year >= 2014)) %>%
         # omit news, front matter, etc. that was misindexed
-        anti_join(read_csv("nonpapers.csv")) %>%
+        anti_join(read_csv("nonpapers.csv", col_types="c")) %>%
+        anti_join(read_csv("nonpapers_icga.csv", col_types="c")) %>%
         # canonicalize DBLP and local aliases
         sub_aliases(read_tsv("../aliases.tsv.gz", quote="", col_types="cc")) %>%
         sub_aliases(read_csv("aliases.csv", col_types="cc"))
