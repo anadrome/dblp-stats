@@ -1,5 +1,5 @@
 # rank institutions by technical game research output
-# mjn, 2018
+# mjn, 2018-2021
 
 library(tidyverse)
 library(whisker)
