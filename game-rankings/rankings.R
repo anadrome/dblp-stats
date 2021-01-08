@@ -121,7 +121,8 @@ allinstauthors <- allauthors %>%
         arrange(institution) %>%
         rowSplit %>% unname
 allotherauthors <- (allauthors %>% filter(affiliation == "Other"))$authors[1]
-missingauthors  <- (allauthors %>% filter(is.na(affiliation)))$authors[1]
+missingauthors_g1 <- authors %>% filter(is.na(affiliation)) %>% filter(n >= 1.0) %>% pull(name) %>% paste(collapse=", ")
+missingauthors_l1 <- authors %>% filter(is.na(affiliation)) %>% filter(n < 1.0) %>% pull(name) %>% paste(collapse=", ")
 
 # output the list-of-all-affiliations page
 template <- readLines("affiliations.mustache")
