@@ -103,6 +103,7 @@ writeLines(html, "index.html")
 
 # collect authors for the list-of-all-affiliations page
 topauthors <- authors %>% filter(n >= 2.0)
+numtopauthors <- topauthors %>% count() %>% pull(n)
 otherauthors <- authors %>% anti_join(topauthors)
 allauthors <- full_join(topauthors %>%
                           group_by(affiliation) %>%
