@@ -26,18 +26,19 @@ venues <- c("journals/tciaig",
             "conf/si3d")
 
 sub_aliases <- function(data, aliases) {
-        data %>% left_join(aliases, by=c("name"="alias")) %>%
-        mutate(canonicalized=coalesce(canonical, name)) %>%
-        select(venue_key, name=canonicalized, fraction)
+        data %>% left_join(aliases, by=c("author_name"="alias")) %>%
+        mutate(author_name=coalesce(canonical, author_name)) %>% select(-canonical)
 }
 
 
-pubs <- read_tsv("../dblp-authors.tsv.gz", quote="", col_types="ccccid") %>%
+pubs <- read_tsv("../papers.tsv.gz", quote="", col_types="ciccci") %>%
         filter((venue_key %in% venues & year >= cutoffyear) |
                (venue_key == "journals/cie" & year >= 2014)) %>%
         # omit news, front matter, etc. that was misindexed
         anti_join(read_csv("nonpapers.csv", col_types="c")) %>%
         anti_join(read_csv("nonpapers_icga.csv", col_types="c")) %>%
+        # add authors
+        left_join(read_tsv("../authors.tsv.gz", quote="", col_types="cc"), by="paper_key") %>%
         # canonicalize DBLP and local aliases
         sub_aliases(read_tsv("../aliases.tsv.gz", quote="", col_types="cc")) %>%
         sub_aliases(read_csv("aliases.csv", col_types="cc"))
@@ -48,17 +49,17 @@ affiliations <- read_csv("affiliations.csv", col_types="cc")
 top100 <- pubs %>%
         inner_join(affiliations) %>%
         filter(affiliation != "Other") %>%
-        count(affiliation, wt=fraction) %>% top_n(100) %>%
+        count(affiliation, wt=1/num_authors) %>% top_n(100) %>%
         arrange(desc(n))
 
 # authors sorted by institution and paper-shares,
 # w/ "0001" style disambiguators omitted for presentation
 authors <- pubs %>%
-        count(name, wt=fraction) %>%
+        count(author_name, wt=1/num_authors) %>%
         left_join(affiliations) %>%
-        mutate(name=str_replace(name, " \\d+$", "")) %>%
+        mutate(author_name=str_replace(author_name, " \\d+$", "")) %>%
         arrange(affiliation, desc(n))
-numauthors <- length((authors %>% filter(!is.na(affiliation)))$name)
+numauthors <- length((authors %>% filter(!is.na(affiliation)))$author_name)
 numaffiliations <- n_distinct(authors$affiliation, na.rm=T) - 1  # -1 to uncount "Other"
 numperaffiliation <- authors %>% group_by(affiliation) %>% summarise(numauthors=n())
 
@@ -68,7 +69,7 @@ tableauthors <- authors %>%
         filter(affiliation %in% top100$affiliation) %>%
         group_by(affiliation) %>%
         filter((min_rank(desc(n)) == 1) | (n >= 2.0)) %>%
-        summarise(authors=paste(name, collapse=", "), numtableauthors=n())
+        summarise(authors=paste(author_name, collapse=", "), numtableauthors=n())
 numtableauthors <- sum(tableauthors$numtableauthors)
 
 # comma-separated top venues per institution for the results table
@@ -76,7 +77,7 @@ numtableauthors <- sum(tableauthors$numtableauthors)
 tablevenues <- pubs %>%
         inner_join(affiliations) %>%
         filter(affiliation %in% top100$affiliation) %>%
-        count(affiliation, venue_key, wt=fraction) %>%
+        count(affiliation, venue_key, wt=1/num_authors) %>%
         group_by(affiliation) %>%
         filter((min_rank(desc(n)) == 1) | (n >= 2.0)) %>%
         left_join(read_csv("venue-names.csv", col_types="cc")) %>%
@@ -107,10 +108,10 @@ numtopauthors <- topauthors %>% count() %>% pull(n)
 otherauthors <- authors %>% anti_join(topauthors)
 allauthors <- full_join(topauthors %>%
                           group_by(affiliation) %>%
-                          summarise(topauthors=paste(name, collapse=", ")),
+                          summarise(topauthors=paste(author_name, collapse=", ")),
                         otherauthors %>%
                           group_by(affiliation) %>%
-                          summarise(otherauthors=paste(name, collapse=", ")),
+                          summarise(otherauthors=paste(author_name, collapse=", ")),
                         by="affiliation") %>%
               left_join(instnames) %>%
               mutate(authors=case_when(
@@ -122,8 +123,8 @@ allinstauthors <- allauthors %>%
         arrange(institution) %>%
         rowSplit %>% unname
 allotherauthors <- (allauthors %>% filter(affiliation == "Other"))$authors[1]
-missingauthors_g1 <- authors %>% filter(is.na(affiliation)) %>% filter(n >= 1.0) %>% pull(name) %>% paste(collapse=", ")
-missingauthors_l1 <- authors %>% filter(is.na(affiliation)) %>% filter(n < 1.0) %>% pull(name) %>% paste(collapse=", ")
+missingauthors_g1 <- authors %>% filter(is.na(affiliation)) %>% filter(n >= 1.0) %>% pull(author_name) %>% paste(collapse=", ")
+missingauthors_l1 <- authors %>% filter(is.na(affiliation)) %>% filter(n < 1.0) %>% pull(author_name) %>% paste(collapse=", ")
 
 # output the list-of-all-affiliations page
 template <- readLines("affiliations.mustache")

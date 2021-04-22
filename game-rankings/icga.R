@@ -4,9 +4,9 @@
 library(tidyverse)
 library(rvest)
 
-pubs <- read_tsv("../dblp-authors.tsv.gz", quote="", col_types="ccccid")
-dois <- read_tsv("../doi.tsv.gz")
-icga_pubs <- pubs %>% filter(venue_key=="journals/icga" & year >= 2011) %>% distinct(key) %>% inner_join(dois,by="key")
+pubs <- read_tsv("../papers.tsv.gz", quote="", col_types="ciccci")
+dois <- read_tsv("../urls.tsv.gz") %>% filter(str_detect(url, "^https://doi.org"))
+icga_pubs <- pubs %>% filter(venue_key=="journals/icga" & year >= 2011) %>% distinct(paper_key) %>% inner_join(dois,by="paper_key")
 
 read_html_slowly <- slowly(read_html)
 get_type <- function(url) {
@@ -15,6 +15,6 @@ get_type <- function(url) {
 # a few DOIs give a 500 server error, so we'll assume they're not a valid Research Article
 possibly_get_type <- possibly(get_type, '') 
 
-icga_pubs <- icga_pubs %>% rowwise() %>% mutate(type=possibly_get_type(doi))
+icga_pubs <- icga_pubs %>% rowwise() %>% mutate(type=possibly_get_type(url))
 
-icga_pubs %>% filter(type!="Research Article") %>% select(key) %>% write_csv("nonpapers_icga.csv")
+icga_pubs %>% filter(type!="Research Article") %>% select(paper_key) %>% write_csv("nonpapers_icga.csv")

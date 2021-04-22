@@ -1,5 +1,10 @@
 ;; extract some DBLP authorship info from the XML dump to TSV
-;; mjn, 2017-2020
+;; Produces four output output files, the first three joinable on paper_key
+;;   papers.tsv - paper_key num_authors title venue_key venue_name year
+;;   authors.tsv - paper_key author_name
+;;   urls.tsv - paper_key url
+;;   aliases.tsv - canonical alias
+;; mjn, 2017-2021
 
 ; TODO: Still issues around what can be used as a venue key. Probably need
 ; both key *and* name, so we can use key as unique but use name to filter out
@@ -13,30 +18,32 @@
 (ql:quickload :external-program)
 (ql:quickload :cxml)
 (ql:quickload :cxml-klacks)
-(ql:quickload :uiop)
 (load "util.cl")
 
-(defparameter *dblp-authors-file* (open #p"dblp-authors.tsv" :direction :output :if-exists :supersede))
-(print-tsv '("name" "key" "venue_key" "venue_name" "year" "fraction") *dblp-authors-file*)
+(defparameter *papers-file* (open #p"papers.tsv" :direction :output :if-exists :supersede))
+(print-tsv '("paper_key" "num_authors" "title" "venue_key" "venue_name" "year") *papers-file*)
+(defparameter *authors-file* (open #p"authors.tsv" :direction :output :if-exists :supersede))
+(print-tsv '("paper_key" "author_name") *authors-file*)
+(defparameter *urls-file* (open #p"urls.tsv" :direction :output :if-exists :supersede))
+(print-tsv '("paper_key" "url") *urls-file*)
 (defparameter *aliases-file* (open #p"aliases.tsv" :direction :output :if-exists :supersede))
 (print-tsv '("canonical" "alias") *aliases-file*)
-(defparameter *doi-file* (open #p"doi.tsv" :direction :output :if-exists :supersede))
-(print-tsv '("key" "doi") *doi-file*)
 
 (defun process-pub (entry)
   (let ((key (get-attribute entry "key"))
         (data (plistify (cddr entry))))
     (let ((authors (getf-all data :author))
+          (title (getf data :title))
           (venue (or (getf data :journal) (getf data :booktitle)))
           (year (getf data :year))
           (key-prefix (subseq key 0 (position #\/ key :from-end t)))
-          (doi (find-if (lambda (url) (uiop:string-prefix-p "https://doi.org" url)) (getf-all data :ee))))
-      (when (and authors year)
-        (let ((fraction (/ 1.0 (length authors))))
-          (dolist (author authors)
-            (print-tsv (list author key key-prefix venue year fraction) *dblp-authors-file*))))
-      (when doi
-        (print-tsv (list key doi) *doi-file*)))))
+          (urls (getf-all data :ee)))
+      (when (not (string= key-prefix "dblpnote")) ; there are a few test & error entries named this way
+        (print-tsv (list key (length authors) title key-prefix venue year) *papers-file*)
+        (dolist (author authors)
+          (print-tsv (list key author) *authors-file*))
+        (dolist (url urls)
+          (print-tsv (list key url) *urls-file*))))))
 
 (defun process-www (entry)
   (let* ((key (get-attribute entry "key"))
@@ -57,10 +64,10 @@
                  (external-program:start "gzcat" '("dblp.xml.gz") :output :stream))))
   (klacks:with-open-source (dblp (cxml:make-source dblp-gz))
     (loop for entry = (get-next-pub dblp)
+          while entry
           do (if (equal (car entry) "www")
                (process-www entry)
-               (process-pub entry))
-          while entry)))
-(close *dblp-authors-file*)
+               (process-pub entry)))))
+(close *papers-file*)
+(close *authors-file*)
 (close *aliases-file*)
-(close *doi-file*)

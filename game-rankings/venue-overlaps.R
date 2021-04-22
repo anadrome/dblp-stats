@@ -25,13 +25,12 @@ venues <- c("journals/tciaig",
             "conf/digra")
 
 sub_aliases <- function(data, aliases) {
-        data %>% left_join(aliases, by=c("name"="alias")) %>%
-        mutate(canonicalized=coalesce(canonical, name)) %>%
-        select(name=canonicalized, key, venue_key, venue_name, year, fraction)
+        data %>% left_join(aliases, by=c("author_name"="alias")) %>%
+        mutate(author_name=coalesce(canonical, author_name)) %>% select(-canonical)
 }
 
 
-all_pubs <- read_tsv("../dblp-authors.tsv.gz", quote="", col_types="ccccid") %>%
+all_pubs <- read_tsv("../papers.tsv.gz", quote="", col_types="ciccci") %>%
     filter(year >= cutoffyear & venue_key != "journals/corr") %>%
     sub_aliases(read_tsv("../aliases.tsv.gz", quote="", col_types="cc")) %>%
     sub_aliases(read_csv("aliases.csv", col_types="cc"))
@@ -46,21 +45,21 @@ min_papers=2
 venue_table <- read_csv("venue-names.csv", col_types="cc")
 venue_keys <- venue_table %>% pull(venue_key)
 venue_names <- venue_table %>% pull(venue)
-author_venues <- game_pubs %>% inner_join(game_pubs %>% count(name) %>% filter(n>=min_papers), by="name") %>% count(name, venue_key, wt=fraction)
-authors_per_venue <- venue_keys %>% map(~ author_venues %>% filter(venue_key==.x) %>% pull(name))
+author_venues <- game_pubs %>% inner_join(game_pubs %>% count(author_name) %>% filter(n>=min_papers), by="author_name") %>% count(author_name, venue_key, wt=1/num_authors)
+authors_per_venue <- venue_keys %>% map(~ author_venues %>% filter(venue_key==.x) %>% pull(author_name))
 
-threshold = 20 # min percentage to draw an outgoing edge
+threshold = 10 # min percentage to draw an outgoing edge
 sink("venue-overlaps.dot")
 cat("digraph venue_overlaps {\n")
 for (n in 1:length(venue_names)) {
     cat(paste(c("  \"", venue_keys[[n]], "\" [label=\"", venue_names[[n]], "\"];\n"), collapse=""))
 }
 for (n in 1:length(venue_names)) {
-    num_authors <- length(authors_per_venue[[n]])
+    num_venue_authors <- length(authors_per_venue[[n]])
     outgoing <- all_pubs %>%
-        filter(name %in% authors_per_venue[[n]] & venue_key != venue_keys[[n]]) %>%
-        distinct(name, venue_key) %>% count(venue_key) %>%
-        mutate(pct=floor(n/num_authors*100)) %>%
+        filter(author_name %in% authors_per_venue[[n]] & venue_key != venue_keys[[n]]) %>%
+        distinct(author_name, venue_key) %>% count(venue_key) %>%
+        mutate(pct=floor(n/num_venue_authors*100)) %>%
         filter(pct >= threshold)
 
     outgoing %>% pwalk(~ cat(paste(c("  \"", venue_keys[[n]], "\" -> \"", ..1, "\" [label=\"", ..3, "%\",weight=", ..3, ",penwidth=", ..3/10, "];\n"), collapse="")))
