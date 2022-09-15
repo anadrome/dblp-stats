@@ -32,8 +32,9 @@ sub_aliases <- function(data, aliases) {
 
 
 pubs <- read_tsv("../papers.tsv.gz", quote="", col_types="ciccci") %>%
-        filter((venue_key %in% venues & year >= cutoffyear) |
-               (venue_key == "journals/cie" & year >= 2014)) %>%
+        filter(num_authors > 0 &
+               ((venue_key %in% venues & year >= cutoffyear) |
+               (venue_key == "journals/cie" & year >= 2014))) %>%
         # omit news, front matter, etc. that was misindexed
         anti_join(read_csv("nonpapers.csv", col_types="c")) %>%
         anti_join(read_csv("nonpapers_icga.csv", col_types="c")) %>%
