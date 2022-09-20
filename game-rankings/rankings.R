@@ -31,7 +31,7 @@ sub_aliases <- function(data, aliases) {
 }
 
 
-pubs <- read_tsv("../papers.tsv.gz", quote="", col_types="ciccci") %>%
+pubs <- read_tsv("../papers.tsv.gz", quote="", col_types="ciccciic") %>%
         filter(num_authors > 0 &
                ((venue_key %in% venues & year >= cutoffyear) |
                (venue_key == "journals/cie" & year >= 2014))) %>%

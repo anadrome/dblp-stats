@@ -3,7 +3,7 @@
 # Rewritten from a Lisp version whose lifespan was 2017-2021
 
 # Produces four output output files, the first three joinable on paper_key
-#   papers.tsv - paper_key num_authors title venue_key venue_name year
+#   papers.tsv - paper_key num_authors title venue_key venue_name year [volume] [number]
 #   authors.tsv - paper_key author_name
 #   urls.tsv - paper_key url
 #   aliases.tsv - canonical alias
@@ -13,7 +13,7 @@ import gzip
 from collections import defaultdict
 
 papers_file = open("papers.tsv", "w")
-papers_file.write("paper_key\tnum_authors\ttitle\tvenue_key\tvenue_name\tyear\n")
+papers_file.write("paper_key\tnum_authors\ttitle\tvenue_key\tvenue_name\tyear\tvolume\tnumber\n")
 
 authors_file = open("authors.tsv", "w")
 authors_file.write("paper_key\tauthor_name\n")
@@ -45,7 +45,9 @@ with gzip.open("dblp.xml.gz") as infile:
       elif elem.tag != "www" and not key.startswith("dblpnote/"): # there are a few test & error entries named this way
         # this should be a publication
         venue = fields["journal"][0] if fields["journal"] else fields["booktitle"][0]
-        papers_file.write(f"{key}\t{len(fields['author'])}\t{fields['title'][0]}\t{key[:key.rfind('/')]}\t{venue}\t{fields['year'][0]}\n")
+        volume = fields["volume"][0] if fields["volume"] else ""
+        number = fields["number"][0] if fields["number"] else ""
+        papers_file.write(f"{key}\t{len(fields['author'])}\t{fields['title'][0]}\t{key[:key.rfind('/')]}\t{venue}\t{fields['year'][0]}\t{volume}\t{number}\n")
         for author in fields["author"]:
           authors_file.write(f"{key}\t{author}\n")
         for url in fields["ee"]:
