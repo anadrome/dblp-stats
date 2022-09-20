@@ -19,7 +19,7 @@ venues <- c("journals/tciaig",
             "conf/mig",
             "conf/ACMace",
             "conf/iwec",
-            "conf/chiplay",
+            "conf/chiplay",     # from 2021, main-conf papers in special issue of journals/pacmhci
             "conf/icids",
             "conf/cg",
             "conf/acg",
@@ -34,7 +34,10 @@ sub_aliases <- function(data, aliases) {
 pubs <- read_tsv("../papers.tsv.gz", quote="", col_types="ciccciic") %>%
         filter(num_authors > 0 &
                ((venue_key %in% venues & year >= cutoffyear) |
-               (venue_key == "journals/cie" & year >= 2014))) %>%
+               (venue_key == "journals/cie" & year >= 2014) |
+               (venue_key == "journals/pacmhci" & number == "CHI"))) %>%
+        # treat journals/pacmhci CHI Play special issue as if it were conf/chiplay
+        mutate(venue_key = replace(venue_key, venue_key == "journals/pacmhci", "conf/chiplay")) %>%
         # omit news, front matter, etc. that was misindexed
         anti_join(read_csv("nonpapers.csv", col_types="c")) %>%
         anti_join(read_csv("nonpapers_icga.csv", col_types="c")) %>%
