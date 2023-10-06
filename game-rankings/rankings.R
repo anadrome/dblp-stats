@@ -1,12 +1,12 @@
 # rank institutions by technical game research output
-# mjn, 2018-2021
+# mjn, 2018-2023
 
 library(tidyverse)
 library(whisker)
 
 dblp_date <- file.mtime("../dblp.xml.gz") %>% str_replace(" .*$","")
 
-cutoffyear <- 2011              # (inclusive)
+cutoffyear <- 2013              # (inclusive)
 venues <- c("journals/tciaig",
             "journals/entcom",
             "journals/ijcgt",
@@ -35,7 +35,7 @@ pubs <- read_tsv("../papers.tsv.gz", quote="", col_types="ciccciic") %>%
         filter(num_authors > 0 &
                ((venue_key %in% venues & year >= cutoffyear) |
                (venue_key == "journals/cie" & year >= 2014) |
-               (venue_key == "journals/pacmhci" & number == "CHI"))) %>%
+               (venue_key == "journals/pacmhci" & number == "CHI PLAY"))) %>%
         # treat journals/pacmhci CHI Play special issue as if it were conf/chiplay
         mutate(venue_key = replace(venue_key, venue_key == "journals/pacmhci", "conf/chiplay")) %>%
         # omit news, front matter, etc. that was misindexed
