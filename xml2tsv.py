@@ -1,5 +1,5 @@
 # Dump data from DBLP's XML export into some TSV files
-# Mark Nelson, 2021
+# Mark Nelson, 2021-2023
 # Rewritten from a Lisp version whose lifespan was 2017-2021
 
 # Produces four output output files, the first three joinable on paper_key
@@ -12,16 +12,16 @@ import lxml.etree as et
 import gzip
 from collections import defaultdict
 
-papers_file = open("papers.tsv", "w")
+papers_file = gzip.open("papers.tsv.gz", "wt")
 papers_file.write("paper_key\tnum_authors\ttitle\tvenue_key\tvenue_name\tyear\tvolume\tnumber\n")
 
-authors_file = open("authors.tsv", "w")
+authors_file = gzip.open("authors.tsv.gz", "wt")
 authors_file.write("paper_key\tauthor_name\n")
 
-urls_file = open("urls.tsv", "w")
+urls_file = gzip.open("urls.tsv.gz", "wt")
 urls_file.write("paper_key\turl\n")
 
-aliases_file = open("aliases.tsv", "w")
+aliases_file = gzip.open("aliases.tsv.gz", "wt")
 aliases_file.write("canonical\talias\n")
 
 with gzip.open("dblp.xml.gz") as infile:
