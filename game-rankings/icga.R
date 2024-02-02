@@ -4,7 +4,7 @@
 library(tidyverse)
 library(rvest)
 
-pubs <- read_tsv("../papers.tsv.gz", quote="", col_types="ciccci")
+pubs <- read_tsv("../papers.tsv.gz", quote="", col_types="cicccicc")
 dois <- read_tsv("../urls.tsv.gz") %>% filter(str_detect(url, "^https://doi.org"))
 icga_pubs <- pubs %>% filter(venue_key=="journals/icga" & year >= 2011) %>% distinct(paper_key) %>% inner_join(dois,by="paper_key")
 
