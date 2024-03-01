@@ -1,12 +1,12 @@
 # find ICGA papers that aren't of type Research Article by scraping the IOS Press site
-# mjn, 2020, 2021
+# mjn, 2020-2024
 
 library(tidyverse)
 library(rvest)
 
 pubs <- read_tsv("../papers.tsv.gz", quote="", col_types="cicccicc")
 dois <- read_tsv("../urls.tsv.gz") %>% filter(str_detect(url, "^https://doi.org"))
-icga_pubs <- pubs %>% filter(venue_key=="journals/icga" & year >= 2011) %>% distinct(paper_key) %>% inner_join(dois,by="paper_key")
+icga_pubs <- pubs %>% filter(venue_key=="journals/icga" & year >= 2014) %>% distinct(paper_key) %>% inner_join(dois,by="paper_key")
 
 read_html_slowly <- slowly(read_html)
 get_type <- function(url) {
